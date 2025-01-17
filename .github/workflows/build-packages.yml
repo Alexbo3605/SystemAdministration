@@ -1,0 +1,59 @@
+name: Build RPM and DEB Packages
+
+on:
+  push:
+    branches:
+      - main  
+  pull_request:
+    branches:
+      - main  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm build-essential fakeroot dpkg-dev
+
+      - name: Set up RPM build directories
+        run: |
+          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+      - name: Copy files to RPM build directories
+        run: |
+          cp count_files.sh ~/rpmbuild/SOURCES/count_files.sh
+          cp count_files.spec ~/rpmbuild/SPECS/count_files.spec
+
+      - name: Build RPM package
+        run: |
+          rpmbuild -ba ~/rpmbuild/SPECS/count_files.spec
+
+      - name: Set up DEB build directory structure
+        run: |
+          mkdir -p ~/debbuild/count_files-1.0/usr/local/bin
+          mkdir -p ~/debbuild/count_files-1.0/usr/share/doc/count_files
+          mkdir -p ~/debbuild/count_files-1.0/DEBIAN
+
+          cp count_files.sh ~/debbuild/count_files-1.0/usr/local/bin/
+          cp DEBIAN/control ~/debbuild/count_files-1.0/DEBIAN/control
+          cp DEBIAN/rules ~/debbuild/count_files-1.0/DEBIAN/rules
+          cp DEBIAN/compat ~/debbuild/count_files-1.0/DEBIAN/compat
+
+      - name: Build DEB package
+        run: |
+          cd ~/debbuild/count_files-1.0
+          dpkg-deb --build . ../count_files-1.0.deb
+
+      - name: Upload RPM and DEB artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: count_files_package
+          path: |
+            ~/rpmbuild/RPMS/noarch/count_files-1.0-1.noarch.rpm
+            ~/debbuild/count_files-1.0.deb
